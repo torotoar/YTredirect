@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membuka YouTube...</title>
+    <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const v = params.get('v');
+            
+            if (!v) {
+                window.location.replace("https://www.youtube.com");
+                return;
+            }
+
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const webFallback = `https://www.youtube.com/watch?v=${v}`;
+
+            // 1. Untuk Android: Gunakan Intent URI (Teknik utama OpenInApp untuk tembus browser IG)
+            if (/android/i.test(ua)) {
+                const intentUrl = `intent://www.youtube.com/watch?v=${v}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodeURIComponent(webFallback)};end`;
+                window.location.replace(intentUrl);
+            } 
+            // 2. Untuk iOS (iPhone/iPad): Gunakan skema URL aplikasi YouTube
+            else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                window.location.replace(`vnd.youtube://watch?v=${v}`);
+                setTimeout(function() {
+                    window.location.replace(webFallback);
+                }, 1500);
+            } 
+            // 3. Untuk Laptop/PC: Langsung ke web standar
+            else {
+                window.location.replace(webFallback);
+            }
+        })();
+    </script>
+</head>
+<body style="background:#000; color:#fff; font-family:sans-serif; text-align:center; padding-top:20%;">
+    <p>Mengalihkan ke aplikasi YouTube...</p>
+</body>
+</html>

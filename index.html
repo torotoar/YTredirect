@@ -3,40 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Membuka YouTube...</title>
+    <title>YouTube Deep Link Generator</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body {
+            background-color: #0f0f0f;
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        h2 { margin-top: 0; font-size: 22px; }
+        p { color: #aaa; font-size: 14px; margin-bottom: 24px; }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background-color: #121212;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #ff0000; }
+        button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            background-color: #ff0000;
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #cc0000; }
+        .result-box {
+            display: none;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        .copy-btn {
+            background-color: #2ea44f;
+            margin-top: 8px;
+        }
+        .copy-btn:hover { background-color: #22863a; }
+        .error {
+            color: #ff5555;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Tampilan Redirect (Muncul jika ada parameter ?v=) -->
+    <div id="redirect-view" style="display:none; text-align:center;">
+        <p>Mengalihkan ke aplikasi YouTube...</p>
+    </div>
+
+    <!-- Tampilan Generator (Muncul jika dibuka tanpa parameter) -->
+    <div id="generator-view" class="card" style="display:none;">
+        <h2>YT Deep Link Generator</h2>
+        <p>Tempel link video atau Shorts YouTube di bawah untuk membuat link yang langsung membuka aplikasi.</p>
+        
+        <input type="text" id="yt-input" placeholder="Contoh: https://youtu.be/dQw4w9WgXcQ">
+        <button onclick="generateLink()">Buat Deep Link</button>
+        <div id="error-msg" class="error">Link YouTube tidak valid! Pastikan formatnya benar.</div>
+
+        <div id="result-box" class="result-box">
+            <input type="text" id="output-link" readonly>
+            <button id="copy-btn" class="copy-btn" onclick="copyLink()">Copy Link</button>
+        </div>
+    </div>
+
     <script>
         (function() {
             const params = new URLSearchParams(window.location.search);
             const v = params.get('v');
-            
-            if (!v) {
-                window.location.replace("https://www.youtube.com");
+
+            // MODE 1: JIKA ADA PARAMETER ?v=, LANGSUNG REDIRECT KE APLIKASI
+            if (v) {
+                document.getElementById('redirect-view').style.display = 'block';
+                const ua = navigator.userAgent || navigator.vendor || window.opera;
+                const webFallback = `https://www.youtube.com/watch?v=${v}`;
+
+                if (/android/i.test(ua)) {
+                    const intentUrl = `intent://www.youtube.com/watch?v=${v}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodeURIComponent(webFallback)};end`;
+                    window.location.replace(intentUrl);
+                } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                    window.location.replace(`vnd.youtube://watch?v=${v}`);
+                    setTimeout(function() {
+                        window.location.replace(webFallback);
+                    }, 1500);
+                } else {
+                    window.location.replace(webFallback);
+                }
+            } 
+            // MODE 2: JIKA TIDAK ADA PARAMETER, TAMPILKAN WEB GENERATOR
+            else {
+                document.getElementById('generator-view').style.display = 'block';
+            }
+        })();
+
+        // Fungsi mengekstrak ID Video dari berbagai format link YouTube (Standard, youtu.be, Shorts, Live)
+        function extractVideoID(url) {
+            const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+            const match = url.match(regExp);
+            return (match && match[1]) ? match[1] : null;
+        }
+
+        function generateLink() {
+            const input = document.getElementById('yt-input').value.trim();
+            const errorMsg = document.getElementById('error-msg');
+            const resultBox = document.getElementById('result-box');
+            const outputInput = document.getElementById('output-link');
+            const copyBtn = document.getElementById('copy-btn');
+
+            const videoId = extractVideoID(input);
+
+            if (!videoId) {
+                errorMsg.style.display = 'block';
+                resultBox.style.display = 'none';
                 return;
             }
 
-            const ua = navigator.userAgent || navigator.vendor || window.opera;
-            const webFallback = `https://www.youtube.com/watch?v=${v}`;
+            errorMsg.style.display = 'none';
+            // Otomatis mengambil URL dasar GitHub Pages Anda
+            const baseUrl = window.location.origin + window.location.pathname;
+            outputInput.value = `${baseUrl}?v=${videoId}`;
+            
+            resultBox.style.display = 'block';
+            copyBtn.innerText = 'Copy Link';
+        }
 
-            // 1. Untuk Android: Gunakan Intent URI (Teknik utama OpenInApp untuk tembus browser IG)
-            if (/android/i.test(ua)) {
-                const intentUrl = `intent://www.youtube.com/watch?v=${v}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodeURIComponent(webFallback)};end`;
-                window.location.replace(intentUrl);
-            } 
-            // 2. Untuk iOS (iPhone/iPad): Gunakan skema URL aplikasi YouTube
-            else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
-                window.location.replace(`vnd.youtube://watch?v=${v}`);
-                setTimeout(function() {
-                    window.location.replace(webFallback);
-                }, 1500);
-            } 
-            // 3. Untuk Laptop/PC: Langsung ke web standar
-            else {
-                window.location.replace(webFallback);
-            }
-        })();
+        function copyLink() {
+            const outputInput = document.getElementById('output-link');
+            outputInput.select();
+            outputInput.setSelectionRange(0, 99999); // Untuk HP
+            navigator.clipboard.writeText(outputInput.value);
+            
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.innerText = 'Tersalin!';
+            setTimeout(() => { copyBtn.innerText = 'Copy Link'; }, 2000);
+        }
     </script>
-</head>
-<body style="background:#000; color:#fff; font-family:sans-serif; text-align:center; padding-top:20%;">
-    <p>Mengalihkan ke aplikasi YouTube...</p>
 </body>
 </html>
